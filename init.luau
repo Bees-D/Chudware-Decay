@@ -3,7 +3,8 @@
      A broken feature logs and is skipped — never aborts the whole mod.
 ]]
 
-local REPO = "https://raw.githubusercontent.com/Bees-D/Chudware-Decay/master/"
+local PAT = "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"
+local REPO = "https://" .. PAT .. "@raw.githubusercontent.com/Bees-D/Chudware-Decay/master/"
 
 local function load(path)
 	local url = REPO .. path
