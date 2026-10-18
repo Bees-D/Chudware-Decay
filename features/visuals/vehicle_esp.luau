@@ -8,6 +8,9 @@ local espColor = Color3.fromRGB(0, 200, 255)
 local highlights = {}
 local scanCache = {}
 local scanTick = 0
+local SCAN_INTERVAL = 3
+local UPDATE_INTERVAL = 0.5
+local lastUpdate = 0
 
 function Feature.init(tab, ctx)
 	local S = ctx.services
@@ -27,10 +30,13 @@ function Feature.init(tab, ctx)
 
 	local function scan()
 		local now = tick()
-		if now - scanTick < 1 then return scanCache end
+		if now - scanTick < SCAN_INTERVAL then return scanCache end
 		scanTick = now
 		scanCache = {}
+		local count = 0
 		for _, inst in ipairs(workspace:GetDescendants()) do
+			if count > 2000 then break end
+			count += 1
 			if isVehicle(inst) then
 				table.insert(scanCache, inst)
 			end
@@ -40,6 +46,11 @@ function Feature.init(tab, ctx)
 
 	R.onHeartbeat("vehicle_esp", function()
 		if not enabled then return end
+
+		local now = tick()
+		if now - lastUpdate < UPDATE_INTERVAL then return end
+		lastUpdate = now
+
 		local hrp = S.HRP()
 		if not hrp then return end
 
@@ -68,6 +79,7 @@ function Feature.toggle(state)
 	if not state then
 		for inst in pairs(highlights) do U.clearHighlight(inst) end
 		highlights = {}
+		scanCache = {}
 	end
 end
 

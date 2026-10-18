@@ -13,12 +13,14 @@ local CRATE_NAMES = { ["Crate"] = true, ["Military Crate"] = true, ["Food Crate"
 local CRATE_COLOR = Color3.fromRGB(255, 220, 50)
 local BARREL_COLOR = Color3.fromRGB(200, 130, 50)
 local DROP_COLOR = Color3.fromRGB(100, 255, 100)
-local SUPPLY_COLOR = Color3.fromRGB(255, 50, 255)
 
 local highlights = {}
 local scanCache = {}
 local scanTick = 0
-local SCAN_INTERVAL = 0.5
+local SCAN_INTERVAL = 3
+local UPDATE_INTERVAL = 0.5
+local lastUpdate = 0
+local MAX_SCAN_ITEMS = 2000
 
 function Feature.init(tab, ctx)
 	local S = ctx.services
@@ -34,14 +36,14 @@ function Feature.init(tab, ctx)
 	tab:CreateSlider({ Name = "Max Distance", Range = {50, 2000}, Increment = 50, CurrentValue = 500, Flag = "loot_esp_dist", Callback = function(v) maxDist = v end })
 
 	local function scan()
-		scanCache = {}
 		local now = tick()
 		if now - scanTick < SCAN_INTERVAL then return scanCache end
 		scanTick = now
+		scanCache = {}
 
 		local count = 0
 		for _, inst in ipairs(workspace:GetDescendants()) do
-			if count > 3000 then break end
+			if count > MAX_SCAN_ITEMS then break end
 			count += 1
 			if inst:IsA("Model") and CRATE_NAMES[inst.Name] then
 				table.insert(scanCache, { inst = inst, kind = "crate" })
@@ -56,6 +58,11 @@ function Feature.init(tab, ctx)
 
 	R.onHeartbeat("loot_esp", function()
 		if not enabled then return end
+
+		local now = tick()
+		if now - lastUpdate < UPDATE_INTERVAL then return end
+		lastUpdate = now
+
 		local hrp = S.HRP()
 		if not hrp then return end
 
@@ -90,6 +97,7 @@ function Feature.toggle(state)
 	if not state then
 		for inst in pairs(highlights) do U.clearHighlight(inst) end
 		highlights = {}
+		scanCache = {}
 	end
 end
 

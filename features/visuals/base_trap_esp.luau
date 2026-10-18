@@ -10,6 +10,9 @@ local showTraps = true
 local showTurrets = true
 local showWalls = true
 local billboards = {}
+local SCAN_INTERVAL = 2
+local lastScan = 0
+local cachedItems = {}
 
 local CLASSIFY = {
 	["Code Lock"] = "lock", ["Key Lock"] = "lock",
@@ -31,8 +34,6 @@ local COLORS = {
 	wall = Color3.fromRGB(100, 200, 255),
 	other = Color3.fromRGB(200, 200, 200),
 }
-
-local FILTER = { lock = "showLocks", door = "showDoors", trap = "showTraps", turret = "showTurrets", wall = "showWalls" }
 
 function Feature.init(tab, ctx)
 	local S = ctx.services
@@ -70,16 +71,29 @@ function Feature.init(tab, ctx)
 		return bb
 	end
 
+	local function scanDeployables()
+		local now = tick()
+		if now - lastScan < SCAN_INTERVAL then return cachedItems end
+		lastScan = now
+		cachedItems = {}
+		local deployables = U.try(function() return workspace.PlayerBuiltStructures.Deployables:GetChildren() end)
+		if not deployables then return cachedItems end
+		for _, model in ipairs(deployables) do
+			if U.alive(model) then
+				table.insert(cachedItems, model)
+			end
+		end
+		return cachedItems
+	end
+
 	R.onHeartbeat("base_esp", function()
 		if not enabled then return end
 		local hrp = S.HRP()
 		if not hrp then return end
 
-		local deployables = U.try(function() return workspace.PlayerBuiltStructures.Deployables:GetChildren() end)
-		if not deployables then return end
-
+		local items = scanDeployables()
 		local seen = {}
-		for _, model in ipairs(deployables) do
+		for _, model in ipairs(items) do
 			if U.alive(model) then
 				local cat = classify(model.Name)
 				local filterFn = filters[cat]
@@ -120,6 +134,7 @@ function Feature.toggle(state)
 	if not state then
 		for _, bb in pairs(billboards) do pcall(function() bb:Destroy() end) end
 		billboards = {}
+		cachedItems = {}
 	end
 end
 

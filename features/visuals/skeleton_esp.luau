@@ -7,6 +7,7 @@ local maxDist = 800
 local lineColor = Color3.fromRGB(255, 255, 255)
 local lineThickness = 1.5
 local bones = {}
+local UPDATE_INTERVAL = 1/20
 
 local JOINTS_R15 = {
 	{"Head", "UpperTorso"},
@@ -57,11 +58,16 @@ function Feature.init(tab, ctx)
 		return bones[key]
 	end
 
+	local lastUpdate = 0
 	R.onRender("skeleton_esp", function()
 		if not enabled then
 			for _, set in pairs(bones) do for _, l in ipairs(set) do U.hideDrawing(l) end end
 			return
 		end
+
+		local now = tick()
+		if now - lastUpdate < UPDATE_INTERVAL then return end
+		lastUpdate = now
 
 		local hrp = S.HRP()
 		if not hrp then return end

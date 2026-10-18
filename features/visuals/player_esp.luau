@@ -12,6 +12,7 @@ local showTeamColor = true
 local filterFriendly = false
 local maxDist = 1000
 local drawings = {}
+local UPDATE_INTERVAL = 1/20
 
 function Feature.init(tab, ctx)
 	local S = ctx.services
@@ -64,16 +65,16 @@ function Feature.init(tab, ctx)
 		for _, obj in pairs(d) do U.hideDrawing(obj) end
 	end
 
-	local function destroyAll(d)
-		if not d then return end
-		for _, obj in pairs(d) do U.destroyDrawing(obj) end
-	end
-
+	local lastUpdate = 0
 	R.onRender("player_esp", function()
 		if not enabled then
 			for _, d in pairs(drawings) do hideAll(d) end
 			return
 		end
+
+		local now = tick()
+		if now - lastUpdate < UPDATE_INTERVAL then return end
+		lastUpdate = now
 
 		local cam = S.Camera()
 		local hrp = S.HRP()
@@ -162,7 +163,6 @@ function Feature.toggle(state)
 	if not state then
 		for _, d in pairs(drawings) do
 			for _, obj in pairs(d) do
-				U_hideDrawing = U_hideDrawing -- not in scope; use pcall
 				pcall(function() obj.Visible = false end)
 			end
 		end

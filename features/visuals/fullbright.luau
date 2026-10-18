@@ -5,6 +5,8 @@ Feature.group = "Visuals"
 local enabled = false
 local brightness = 3
 local originals = nil
+local lastApply = 0
+local APPLY_INTERVAL = 1
 
 function Feature.init(tab, ctx)
 	local S = ctx.services
@@ -12,7 +14,7 @@ function Feature.init(tab, ctx)
 
 	tab:CreateSection("Fullbright")
 	tab:CreateToggle({ Name = "Fullbright", CurrentValue = false, Flag = "fullbright_toggle", Callback = function(v) Feature.toggle(v) end })
-	tab:CreateSlider({ Name = "Brightness", Range = {1, 10}, Increment = 0.5, CurrentValue = 3, Flag = "fullbright_val", Callback = function(v) brightness = v end })
+	tab:CreateSlider({ Name = "Brightness", Range = {1, 10}, Increment = 0.5, CurrentValue = 3, Flag = "fullbright_val", Callback = function(v) brightness = v; lastApply = 0 end })
 
 	local function capture()
 		if originals then return end
@@ -57,8 +59,11 @@ function Feature.init(tab, ctx)
 		originals = nil
 	end
 
-	R.onRender("fullbright", function()
+	R.onHeartbeat("fullbright", function()
 		if not enabled then return end
+		local now = tick()
+		if now - lastApply < APPLY_INTERVAL then return end
+		lastApply = now
 		capture()
 		apply()
 	end)

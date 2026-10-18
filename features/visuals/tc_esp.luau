@@ -6,6 +6,9 @@ local enabled = false
 local maxDist = 500
 local espColor = Color3.fromRGB(255, 170, 0)
 local billboards = {}
+local SCAN_INTERVAL = 2
+local lastScan = 0
+local cachedTCs = {}
 
 function Feature.init(tab, ctx)
 	local S = ctx.services
@@ -48,41 +51,52 @@ function Feature.init(tab, ctx)
 		return bb
 	end
 
-	R.onRender("tc_esp", function()
-		if not enabled then return end
-		local hrp = S.HRP()
-		if not hrp then return end
-
+	local function scanTCs()
+		local now = tick()
+		if now - lastScan < SCAN_INTERVAL then return cachedTCs end
+		lastScan = now
+		cachedTCs = {}
 		local deployables = U.try(function() return workspace.PlayerBuiltStructures.Deployables:GetChildren() end)
-		if not deployables then return end
-
-		local seen = {}
+		if not deployables then return cachedTCs end
 		for _, model in ipairs(deployables) do
 			if U.alive(model) then
 				local bc = model:FindFirstChild("BaseClaim")
 				if not bc and model.Name == "Base Claim" then bc = true end
-				if bc then
-					local pos = U.positionOf(model)
-					if pos and (pos - hrp.Position).Magnitude <= maxDist then
-						seen[model] = true
-						if not billboards[model] or not U.alive(billboards[model]) then
-							billboards[model] = makeBB(model)
-						end
-						local bb = billboards[model]
-						if bb then
-							local lbl = bb:FindFirstChild("Info")
-							if lbl then
-								lbl.TextColor3 = espColor
-								local hp = U.try(function() return model.Health.Value end) or "?"
-								local maxHp = getMaxHP("Base Claim")
-								local authCount = 0
-								local authFolder = U.try(function()
-									return model.BaseClaim.Value.AuthorizedPlayers
-								end)
-								if authFolder then authCount = #authFolder:GetChildren() end
-								local dist = math.floor((pos - hrp.Position).Magnitude)
-								lbl.Text = "TC  " .. tostring(hp) .. "/" .. tostring(maxHp) .. "  auth:" .. tostring(authCount) .. "  [" .. dist .. "m]"
-							end
+				if bc then table.insert(cachedTCs, model) end
+			end
+		end
+		return cachedTCs
+	end
+
+	R.onHeartbeat("tc_esp", function()
+		if not enabled then return end
+		local hrp = S.HRP()
+		if not hrp then return end
+
+		local tcs = scanTCs()
+		local seen = {}
+		for _, model in ipairs(tcs) do
+			if U.alive(model) then
+				local pos = U.positionOf(model)
+				if pos and (pos - hrp.Position).Magnitude <= maxDist then
+					seen[model] = true
+					if not billboards[model] or not U.alive(billboards[model]) then
+						billboards[model] = makeBB(model)
+					end
+					local bb = billboards[model]
+					if bb then
+						local lbl = bb:FindFirstChild("Info")
+						if lbl then
+							lbl.TextColor3 = espColor
+							local hp = U.try(function() return model.Health.Value end) or "?"
+							local maxHp = getMaxHP("Base Claim")
+							local authCount = 0
+							local authFolder = U.try(function()
+								return model.BaseClaim.Value.AuthorizedPlayers
+							end)
+							if authFolder then authCount = #authFolder:GetChildren() end
+							local dist = math.floor((pos - hrp.Position).Magnitude)
+							lbl.Text = "TC  " .. tostring(hp) .. "/" .. tostring(maxHp) .. "  auth:" .. tostring(authCount) .. "  [" .. dist .. "m]"
 						end
 					end
 				end
@@ -103,6 +117,7 @@ function Feature.toggle(state)
 	if not state then
 		for _, bb in pairs(billboards) do pcall(function() bb:Destroy() end) end
 		billboards = {}
+		cachedTCs = {}
 	end
 end
 
