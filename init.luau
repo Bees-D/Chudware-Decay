@@ -1,22 +1,15 @@
 --[[ Chudware — Decay (placeId 97393041934796)
-     Loader: sets up Rayfield UI, builds ctx, pcall-loads each feature module.
+     Remote loader: fetches all modules from GitHub via game:HttpGet().
      A broken feature logs and is skipped — never aborts the whole mod.
-
-     ctx contract:
-       ctx.services  = core/services.luau  (cached game services + LocalPlayer helpers)
-       ctx.config    = core/config.luau    (persisted settings with guarded fs)
-       ctx.remotes   = core/remotes.luau   (resolved remote handles + module requirers)
-       ctx.util      = core/util.luau      (math/CFrame/highlight/Drawing helpers)
-       ctx.runtime   = core/runtime.luau   (RenderStepped/Heartbeat loop manager)
-       ctx.notify    = function(title, content) — Rayfield notification
 ]]
 
--- ---- module loader (executor filesystem) ----
-local BASE = "Chudware/"
+local REPO = "https://raw.githubusercontent.com/Bees-D/Chudware-Decay/master/"
+
 local function load(path)
-	local full = BASE .. path
-	local ok, content = pcall(readfile, full)
-	if not ok then error("Cannot read " .. full .. ": " .. tostring(content)) end
+	local url = REPO .. path
+	local ok, content = pcall(function() return game:HttpGet(url) end)
+	if not ok then error("Cannot fetch " .. path .. ": " .. tostring(content)) end
+	if not content or content == "" then error("Empty response for " .. path) end
 	local fn, err = loadstring(content, "@" .. path)
 	if not fn then error("Parse error in " .. path .. ": " .. tostring(err)) end
 	return fn()
@@ -42,7 +35,7 @@ local Tabs = {
 	Security = Window:CreateTab("Security", 4483362458),
 }
 
--- ---- core modules (load order matters: services → util → config → remotes → runtime) ----
+-- ---- core modules (load order matters: services -> util -> config -> remotes -> runtime) ----
 _G._chud_modules = {}
 local Services = load("core/services.luau")
 local Util     = load("core/util.luau")
